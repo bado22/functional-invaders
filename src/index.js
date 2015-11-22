@@ -50,6 +50,21 @@ const KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
 
 // End Keyboard //
 
+// Start Bullet //
+const makeBullet = (center, velocity) => ({
+  size: { x: 3, y: 3 },
+  center: center,
+  velocity: velocity
+});
+
+// TODO - Fix this
+const newBulletCenter = (velocity, bullet) => {(
+  R.add(bullet.center.x, velocity.x);
+)};
+// END TODO
+
+// End Bullet //
+
 
 // Player //
 const makePlayer = (pixels, gameSize) => ({
@@ -59,12 +74,15 @@ const makePlayer = (pixels, gameSize) => ({
 
 let alex = makePlayer(15, gameSize);
 
+// TODO - Change how this has side effects
 const updatePlayer = (player) => {
   if (keyIsDown(KEYS.LEFT)) {
     player.center.x = R.subtract(player.center.x, 2);
   } else if (keyIsDown(KEYS.RIGHT)) {
     player.center.x = R.add(player.center.x, 2);
-  }
+  } else if (keyIsDown(KEYS.SPACE) {
+
+  })
 }
 
 // End Player //
