@@ -51,6 +51,8 @@ const KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
 // End Keyboard //
 
 // Start Bullet //
+let bullets = [];
+
 const makeBullet = (center, velocity) => ({
   size: { x: 3, y: 3 },
   center: center,
@@ -58,11 +60,23 @@ const makeBullet = (center, velocity) => ({
 });
 
 // TODO - Fix this
-const newBulletCenter = (velocity, bullet) => {(
-  R.add(bullet.center.x, velocity.x);
-)};
+// const newBulletCenter = (velocity, bullet) => {(
+//   R.add(bullet.center.x, velocity.x);
+// )};
 // END TODO
 
+const updateBulletCenter = (bullet) => {
+  bullet.center = {
+    x: bullet.center.x += bullet.velocity.x,
+    y: bullet.center.y += bullet.velocity.y
+  }
+  return bullet;
+}
+
+const updateBulletsPositions = (bullets) => bullets.map(updateBulletCenter);
+
+// drawBullets :: bullets Array -> drawRect
+const updateAndDrawBullets = R.compose(R.forEach(drawRect(screen)), updateBulletsPositions)
 // End Bullet //
 
 
@@ -72,33 +86,65 @@ const makePlayer = (pixels, gameSize) => ({
   center: { x: gameSize.x / 2, y: gameSize.y - pixels }
 });
 
-let alex = makePlayer(15, gameSize);
+let hero = makePlayer(15, gameSize);
 
-// TODO - Change how this has side effects
+// TODO - Remove side effects
 const updatePlayer = (player) => {
   if (keyIsDown(KEYS.LEFT)) {
     player.center.x = R.subtract(player.center.x, 2);
   } else if (keyIsDown(KEYS.RIGHT)) {
     player.center.x = R.add(player.center.x, 2);
-  } else if (keyIsDown(KEYS.SPACE) {
-
-  })
+  } else if (keyIsDown(KEYS.SPACE)) {
+    console.log('space is pressed');
+    bullets.push(makeBullet(
+      { x: player.center.x, y: player.center.y - player.size.y - 10 },
+      { x: 0, y: -7 }
+    ));
+  }
 }
 
 // End Player //
 
-// drawGame(screen, 30);
+// Invaders
+let invaders = [];
 
-// const tick = R.compose(draw, update);
+const makeInvader = (center) => ({
+  center: center,
+  size: { x: 15, y: 15 },
+  patrolX: 0,
+  speedX: 0.3
+});
+
+const setInvaderCenter = (num) => ({
+  x: 30 + (num % 8) * 30,
+  y: 30 + (num % 3) * 30
+})
+
+// createInvadersCenters :: Num -> [{x: Num, y: Num}]
+const createInvadersCenters = R.compose(R.map(setInvaderCenter), R.range(0));
+
+// createInvaders :: Num -> [{Invader}]
+const createInvaders = R.compose(R.map(makeInvader), createInvadersCenters);
+
+// drawInvader :: screen -> drawRect
+const drawInvader = drawRect(screen);
+
+// makeAndDrawInvaders :: Num -> draws rects
+const makeAndDrawInvaders = R.compose(R.forEach(drawInvader), createInvaders);
+
+
+// End Invaders //
 
 console.log(canvas, screen, gameSize);
 
 const tick = () => {
-  updatePlayer(alex);
-  console.log(alex.center);
   screen.clearRect(0, 0, gameSize.x, gameSize.y)
-  drawRect(screen, alex);
-  // draw()
+  updatePlayer(hero);
+  drawRect(screen, hero);
+  updateAndDrawBullets(bullets);
+  makeAndDrawInvaders(24);
+
+
   setTimeout(tick, 50);
   // requestAnimationFrame(tick);
 }
