@@ -3,7 +3,6 @@
 const R = require('ramda');
 const Rx = require('rx')
 
-
 // Game //
 
 const canvas = document.getElementById('space-invaders');
@@ -50,14 +49,29 @@ const KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
 
 // End Keyboard //
 
-// Start Bullet //
-let bullets = [];
+let bodies = [];
 
-const makeBullet = (center, velocity) => ({
-  size: { x: 3, y: 3 },
-  center: center,
-  velocity: velocity
+// Start Bullet //
+
+const bodyFactory = R.curry((type) => {
+  if (type === 'bullet') {
+    return (center, velocity) => ({
+      type: type,
+      size: { x: 3, y: 3 },
+      center: center,
+      velocity: velocity
+    })
+  } else if (type === 'invader') {
+    return (center) => ({
+      type: type,
+      center: center,
+      size: { x: 15, y: 15 },
+      patrolX: 0,
+      speedX: 0.3
+    })
+  }
 });
+
 
 // TODO - Fix this
 // const newBulletCenter = (velocity, bullet) => {(
@@ -73,10 +87,9 @@ const updateBulletCenter = (bullet) => {
   return bullet;
 }
 
-const updateBulletsPositions = (bullets) => bullets.map(updateBulletCenter);
+// updateBulletsPositions :: [Bullets]
+const updateBulletsPositions = R.map(updateBulletCenter);
 
-// drawBullets :: bullets Array -> drawRect
-const updateAndDrawBullets = R.compose(R.forEach(drawRect(screen)), updateBulletsPositions)
 // End Bullet //
 
 
@@ -95,8 +108,7 @@ const updatePlayer = (player) => {
   } else if (keyIsDown(KEYS.RIGHT)) {
     player.center.x = R.add(player.center.x, 2);
   } else if (keyIsDown(KEYS.SPACE)) {
-    console.log('space is pressed');
-    bullets.push(makeBullet(
+    bodies.push(bodyFactory('bullet')(
       { x: player.center.x, y: player.center.y - player.size.y - 10 },
       { x: 0, y: -7 }
     ));
@@ -104,16 +116,6 @@ const updatePlayer = (player) => {
 }
 
 // End Player //
-
-// Invaders
-let invaders = [];
-
-const makeInvader = (center) => ({
-  center: center,
-  size: { x: 15, y: 15 },
-  patrolX: 0,
-  speedX: 0.3
-});
 
 const setInvaderCenter = (num) => ({
   x: 30 + (num % 8) * 30,
@@ -124,26 +126,63 @@ const setInvaderCenter = (num) => ({
 const createInvadersCenters = R.compose(R.map(setInvaderCenter), R.range(0));
 
 // createInvaders :: Num -> [{Invader}]
-const createInvaders = R.compose(R.map(makeInvader), createInvadersCenters);
+const createInvaders = R.compose(R.map(bodyFactory('invader')), createInvadersCenters);
 
-// drawInvader :: screen -> drawRect
-const drawInvader = drawRect(screen);
+// reverseInvaderSpeed :: Invader -> Num
+const reverseInvaderSpeed = R.compose(R.negate, R.prop('speedX'));
 
-// makeAndDrawInvaders :: Num -> draws rects
-const makeAndDrawInvaders = R.compose(R.forEach(drawInvader), createInvaders);
+const moveInvader = (invader) => {
+  if (invader.patrolX < 0 || invader.patrolX > 30) {
+    invader.speedX = reverseInvaderSpeed(invader);
+  }
+  invader.center.x += invader.speedX;
+  invader.patrolX += invader.speedX;
 
+  return invader;
+}
+
+bodies = bodies.concat(createInvaders(24));
+console.log('bodies after creating invaders is: ', bodies);
+// updateInvadersPositions :: [Invaders] -> [Invaders]
+const updateInvadersPositions = R.map(moveInvader);
+
+const colliding = (b1, b2) => {
+  return !(
+    b1 === b2 ||
+    centerX(b1) + sizeX(b1) / 2 < centerX(b2) - sizeX(b2) / 2 ||
+    centerY(b1) + sizeY(b1) / 2 < centerY(b2) - sizeY(b2) / 2 ||
+    centerX(b1) - sizeX(b1) / 2 > centerX(b2) + sizeX(b2) / 2 ||
+    centerY(b1) - sizeY(b1) / 2 > centerY(b2) + sizeY(b2) / 2
+  )
+};
+
+const notCollidingWithAnything = (body1) =>
+  bodies.filter((body2) => colliding(body1, body2)).length === 0;
 
 // End Invaders //
+
+const updateBody = (body) => {
+  if (body.type === 'bullet') {
+    return updateBulletCenter(body);
+  } else if (body.type === 'invader') {
+    return moveInvader(body);
+  }
+}
+
 
 console.log(canvas, screen, gameSize);
 
 const tick = () => {
   screen.clearRect(0, 0, gameSize.x, gameSize.y)
+
   updatePlayer(hero);
   drawRect(screen, hero);
-  updateAndDrawBullets(bullets);
-  makeAndDrawInvaders(24);
 
+  bodies = bodies.map(updateBody);
+
+  bodies = bodies.filter(notCollidingWithAnything);
+  bodies.forEach(drawRect(screen));
+  console.log(bodies);
 
   setTimeout(tick, 50);
   // requestAnimationFrame(tick);
