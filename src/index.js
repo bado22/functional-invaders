@@ -9,9 +9,6 @@ const canvas = document.getElementById('space-invaders');
 const screen = canvas.getContext('2d');
 const gameSize = {x: canvas.width, y: canvas.height};
 
-
-const drawGame = R.curry((screen, size) => screen.fillRect(size, size, size, size));
-
 const centerX = R.compose(R.prop('x'), R.prop('center'));
 const centerY = R.compose(R.prop('y'), R.prop('center'));
 const sizeX = R.compose(R.prop('x'), R.prop('size'));
@@ -51,8 +48,6 @@ const KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
 
 let bodies = [];
 
-// Start Bullet //
-
 const bodyFactory = R.curry((type) => {
   if (type === 'bullet') {
     return (center, velocity) => ({
@@ -60,7 +55,7 @@ const bodyFactory = R.curry((type) => {
       size: { x: 3, y: 3 },
       center: center,
       velocity: velocity
-    })
+    });
   } else if (type === 'invader') {
     return (center) => ({
       type: type,
@@ -68,16 +63,15 @@ const bodyFactory = R.curry((type) => {
       size: { x: 15, y: 15 },
       patrolX: 0,
       speedX: 0.3
-    })
+    });
+  } else if (type === 'player') {
+    return (px, gameSize) => ({
+      type: type,
+      size: { x: px, y: px },
+      center: { x: gameSize.x / 2, y: gameSize.y - px }
+    });
   }
 });
-
-
-// TODO - Fix this
-// const newBulletCenter = (velocity, bullet) => {(
-//   R.add(bullet.center.x, velocity.x);
-// )};
-// END TODO
 
 const updateBulletCenter = (bullet) => {
   bullet.center = {
@@ -87,19 +81,8 @@ const updateBulletCenter = (bullet) => {
   return bullet;
 }
 
-// updateBulletsPositions :: [Bullets]
-const updateBulletsPositions = R.map(updateBulletCenter);
-
-// End Bullet //
-
-
-// Player //
-const makePlayer = (pixels, gameSize) => ({
-  size: { x: pixels, y: pixels },
-  center: { x: gameSize.x / 2, y: gameSize.y - pixels }
-});
-
-let hero = makePlayer(15, gameSize);
+let hero = bodyFactory('player')( 15, gameSize);
+bodies.push(hero);
 
 // TODO - Remove side effects
 const updatePlayer = (player) => {
@@ -108,11 +91,14 @@ const updatePlayer = (player) => {
   } else if (keyIsDown(KEYS.RIGHT)) {
     player.center.x = R.add(player.center.x, 2);
   } else if (keyIsDown(KEYS.SPACE)) {
-    bodies.push(bodyFactory('bullet')(
+    var newBullet = bodyFactory('bullet')(
       { x: player.center.x, y: player.center.y - player.size.y - 10 },
       { x: 0, y: -7 }
-    ));
+    );
+    bodies.push(newBullet);
   }
+
+  return player;
 }
 
 // End Player //
@@ -131,7 +117,7 @@ const createInvaders = R.compose(R.map(bodyFactory('invader')), createInvadersCe
 // reverseInvaderSpeed :: Invader -> Num
 const reverseInvaderSpeed = R.compose(R.negate, R.prop('speedX'));
 
-const moveInvader = (invader) => {
+const updateInvader = (invader) => {
   if (invader.patrolX < 0 || invader.patrolX > 30) {
     invader.speedX = reverseInvaderSpeed(invader);
   }
@@ -142,9 +128,6 @@ const moveInvader = (invader) => {
 }
 
 bodies = bodies.concat(createInvaders(24));
-console.log('bodies after creating invaders is: ', bodies);
-// updateInvadersPositions :: [Invaders] -> [Invaders]
-const updateInvadersPositions = R.map(moveInvader);
 
 const colliding = (b1, b2) => {
   return !(
@@ -163,29 +146,45 @@ const notCollidingWithAnything = (body1) =>
 
 const updateBody = (body) => {
   if (body.type === 'bullet') {
+    console.log('bullet being updated is: ', body);
     return updateBulletCenter(body);
   } else if (body.type === 'invader') {
-    return moveInvader(body);
+    return updateInvader(body);
+  } else if (body.type === 'player') {
+    return updatePlayer(body);
+  }
+};
+
+// bodyIs :: body -> type String;
+const bodyIs = (type) => R.curry(R.compose(R.equals(type), R.prop('type')));
+// let invaders = bodies.filter(bodyIs('invader'));
+// let bullets = bodies.filter(bodyIs('bullet'));
+// let player = bodies.filter(bodyIs('player'));
+
+const invaderShootOrNot = (invader) => {
+  if (Math.random() > 0.995) {
+    console.log('got lucky');
+    let newBullet = bodyFactory('bullet')(
+      { x: centerX(invader), y: centerY(invader) + sizeY(invader) },
+      { x: Math.random() - 0.5, y: 2 }
+    );
+    console.log('newBullet is: ', newBullet);
+    console.log('invader is: ', invader);
+
+    bodies.push(newBullet);
   }
 }
 
-
-console.log(canvas, screen, gameSize);
-
 const tick = () => {
   screen.clearRect(0, 0, gameSize.x, gameSize.y)
-
   updatePlayer(hero);
-  drawRect(screen, hero);
 
   bodies = bodies.map(updateBody);
+  bodies.filter(bodyIs('invader'))
+    .forEach(invaderShootOrNot);
 
   bodies = bodies.filter(notCollidingWithAnything);
   bodies.forEach(drawRect(screen));
-  console.log(bodies);
-
-  setTimeout(tick, 50);
-  // requestAnimationFrame(tick);
-}
+  setTimeout(tick, 50);}
 
 tick();
