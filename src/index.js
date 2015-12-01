@@ -173,15 +173,13 @@ const addInvadersBulletsToBodies = (bodies) => bodies.filter(bodyIs('invader'))
 
 //-------------------- Start Collision Detection --------------------//
 // colliding :: (Num, Num) -> Bool
-const colliding = (b1, b2) => {
-  return !(
-    b1 === b2 ||
-    centerX(b1) + sizeX(b1) / 2 < centerX(b2) - sizeX(b2) / 2 ||
-    centerY(b1) + sizeY(b1) / 2 < centerY(b2) - sizeY(b2) / 2 ||
-    centerX(b1) - sizeX(b1) / 2 > centerX(b2) + sizeX(b2) / 2 ||
-    centerY(b1) - sizeY(b1) / 2 > centerY(b2) + sizeY(b2) / 2
-  )
-};
+const colliding = (b1, b2) => !(
+  b1 === b2 ||
+  centerX(b1) + sizeX(b1) / 2 < centerX(b2) - sizeX(b2) / 2 ||
+  centerY(b1) + sizeY(b1) / 2 < centerY(b2) - sizeY(b2) / 2 ||
+  centerX(b1) - sizeX(b1) / 2 > centerX(b2) + sizeX(b2) / 2 ||
+  centerY(b1) - sizeY(b1) / 2 > centerY(b2) + sizeY(b2) / 2
+);
 
 // notCollidingWithAnything :: {Body} -> Bool
 const notCollidingWithAnything = (body1) =>
