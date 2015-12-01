@@ -7,7 +7,8 @@ let keyState = {};
 let bodies = [];
 const KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
 
-// Game //
+
+//-------------------- Start Game --------------------//
 const canvas = document.getElementById('space-invaders');
 const screen = canvas.getContext('2d');
 const gameSize = {x: canvas.width, y: canvas.height};
@@ -23,9 +24,10 @@ const drawRect = R.curry((screen, body) => screen.fillRect(
   sizeX(body),
   sizeY(body)
 ));
-// End Game //
+//-------------------- End Game --------------------//
 
-// Start Keyboard //
+
+//-------------------- Start Keyboard --------------------//
 const keyIsDown = R.curry((keyCode, keyState) => keyState[keyCode] === true);
 
 let keyups = Rx.Observable.fromEvent(document, 'keyup')
@@ -40,8 +42,10 @@ keydowns.subscribe(
   (evt) => keyState[evt.keyCode] = true,
   (err) => console.log(`the error was ${err}`)
 );
-// End Keyboard //
+//-------------------- End Keyboard --------------------//
 
+
+//-------------------- Start Body Helpers --------------------//
 // bodyFactory :: type String -> Fn
 const bodyFactory = R.curry((type) => {
   if (type === 'bullet') {
@@ -68,12 +72,24 @@ const bodyFactory = R.curry((type) => {
   }
 });
 
+// updateBody :: body -> Fn
+const updateBody = (body) => {
+  if (body.type === 'bullet') return updateBulletCenter(body)
+  else if (body.type === 'invader') return updateInvader(body)
+  else if (body.type === 'player') return updatePlayer(body)
+};
+
+// bodyIs :: body -> type String;
+const bodyIs = (type) => R.curry(R.compose(R.equals(type), R.prop('type')));
+
 // create<entity> :: Fn
 const createBullet = bodyFactory('bullet');
 const createPlayer = bodyFactory('player');
 const createInvader = bodyFactory('invader');
+//-------------------- End Body Helpers --------------------//
 
-// Bullet
+
+//-------------------- Start Bullet ---------------------//
 const updateBulletCenter = (bullet) => {
   bullet.center = {
     x: bullet.center.x += bullet.velocity.x,
@@ -81,9 +97,10 @@ const updateBulletCenter = (bullet) => {
   }
   return bullet;
 }
-// End Bullet
+//-------------------- Emd Bullet --------------------//
 
-// Player
+
+//-------------------- Start Player --------------------//
 const updatePlayer = (player) => {
   if (keyIsDown(KEYS.LEFT, keyState)) {
     player.center.x = R.subtract(player.center.x, 2);
@@ -99,9 +116,10 @@ const updatePlayer = (player) => {
 
   return player;
 }
-// End Player //
+//-------------------- End Player --------------------//
 
-// Invader
+
+//-------------------- Start Invader --------------------//
 // setInvaderCenter :: Num -> Num
 const setInvaderCenter = (num) => ({ x: 30 + (num % 8) * 30, y: 30 + (num % 3) * 30 });
 
@@ -127,9 +145,16 @@ const updateInvader = (invader) => {
 // invaderShootFrequency :: Num (Betwen 0 & 1) -> Bool
 const invaderShootFrequency = (freq) => Math.random() > freq;
 
+// invadersBelow :: {Invader} -> Bool
+const invadersBelow = R.curry((bodies, invader) => bodies.filter((body) =>
+  body.type === 'invader' &&
+  Math.abs(invader.center.x - body.center.x) < body.size.x &&
+  body.center.y > invader.center.y
+).length > 0);
+
 // invaderShootOrNot :: Num (Between 0 & 1) -> {Invader} -> [bodies]
 const invaderShootOrNot = R.curry((freq, invader) => {
-  if (invaderShootFrequency(freq)) {
+  if (invaderShootFrequency(freq) && !invadersBelow(bodies, invader)) {
     let newBullet = createBullet(
       { x: centerX(invader), y: centerY(invader) + sizeY(invader) },
       { x: Math.random() - 0.5, y: 2 }
@@ -142,8 +167,11 @@ const invaderShootOrNot = R.curry((freq, invader) => {
 // TODO -> Do this without a side effect
 const addInvadersBulletsToBodies = (bodies) => bodies.filter(bodyIs('invader'))
   .forEach(invaderShootOrNot(.995));
-// End Invaders //
 
+//-------------------- End Invader --------------------//
+
+
+//-------------------- Start Collision Detection --------------------//
 // colliding :: (Num, Num) -> Bool
 const colliding = (b1, b2) => {
   return !(
@@ -158,22 +186,14 @@ const colliding = (b1, b2) => {
 // notCollidingWithAnything :: {Body} -> Bool
 const notCollidingWithAnything = (body1) =>
   bodies.filter((body2) => colliding(body1, body2)).length === 0;
+//-------------------- End Collision Detection --------------------//
 
-// updateBody :: body -> Fn
-const updateBody = (body) => {
-  if (body.type === 'bullet') return updateBulletCenter(body)
-  else if (body.type === 'invader') return updateInvader(body)
-  else if (body.type === 'player') return updatePlayer(body)
-};
 
-// bodyIs :: body -> type String;
-const bodyIs = (type) => R.curry(R.compose(R.equals(type), R.prop('type')));
-
-// Initialize bodies
+//-------------------- Initialize Bodies --------------------//
 let hero = createPlayer( 15, gameSize);
 bodies.push(hero);
 bodies = bodies.concat(createInvaders(24));
-// End initialize bodies
+//------------------ End Initialize Bodies ------------------//
 
 
 const tick = () => {
